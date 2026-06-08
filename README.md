@@ -4,7 +4,7 @@
 **Student:** Aditi Deodhar  
 **Issue:** https://github.com/pytorch/ignite/issues/3118  
 **Repository:** [pytorch/ignite](https://github.com/pytorch/ignite) — high-level training library for PyTorch (4.7k⭐, actively maintained)  
-**Status:** Phase I — In Progress
+**Status:** Phase I — In Progress (posting approach-proposal comment to claim the issue; awaiting maintainer 👍 before coding)
 
 ---
 
@@ -33,6 +33,14 @@ Formatting is largely fixed/internal — the `_OutputHandler` controls how epoch
 ### Affected Components
 
 - `ignite/contrib/handlers/tqdm_logger.py` (the `ProgressBar` handler and its internal `_OutputHandler`) — _to confirm exact path/module during reproduction in Phase II._
+
+### Maintainer Context & Prior Attempts
+
+This issue is well-discussed, which is a strong signal for Phase II:
+
+- **Maintainer engagement:** Collaborator `@vfdev-5` responded, invited a PR, and posted a workaround showing that careful `bar_format` strings + a mid-sized fill character can visually align bars — but confirmed there's currently no clean way to control *whether/how* epoch info is shown.
+- **Original author's preferred design:** `@jmg049` (issue author) prototyped a `progress_with=<trainer_pbar>` parameter so a secondary (evaluator) bar inherits the trainer's epoch context, plus a custom `epochs` tqdm field. This linking approach — not just more format strings — is what the discussion converged toward.
+- **Failed attempt to learn from — PR [#3761](https://github.com/pytorch/ignite/pull/3761):** A prior contributor added `show_epoch` (bool) + `epoch_format` (string). `@vfdev-5` **closed it unmerged**, saying it "does not address the issue and does wrong things." Two takeaways I'm carrying forward: **(1) agree on the approach in the issue thread before writing code, and (2) verify and locally test any AI-assisted code before opening a PR.**
 
 ---
 
@@ -73,6 +81,8 @@ Using UMPIRE framework (adapted):
 **Understand:** [Restate the problem]
 
 **Match:** [What similar patterns/solutions exist in the codebase?]
+- Prior art: PR [#3761](https://github.com/pytorch/ignite/pull/3761) (`show_epoch` + `epoch_format`) was rejected — avoid that shape. Lean toward `@jmg049`'s `progress_with=` bar-linking idea and confirm scope with `@vfdev-5` first.
+- Study how `_OutputHandler` in `tqdm_logger.py` currently injects epoch info, and how existing `ProgressBar` kwargs (e.g. `bar_format`, `persist`) are threaded through to `tqdm`.
 
 **Plan:** [Step-by-step implementation plan]
 1. [Modify file X to do Y]
