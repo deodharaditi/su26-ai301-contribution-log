@@ -1,18 +1,18 @@
-# Contribution 1: More control over ProgressBar formatting
+# Contribution 1: Document authentication via fsspec `storage_options`
 
 **Contribution Number:** 1  
 **Student:** Aditi Deodhar  
-**Issue:** https://github.com/pytorch/ignite/issues/3118  
-**Repository:** [pytorch/ignite](https://github.com/pytorch/ignite) — high-level training library for PyTorch (4.7k⭐, actively maintained)  
-**Status:** Phase I — In Progress (posting approach-proposal comment to claim the issue; awaiting maintainer 👍 before coding)
+**Issue:** https://github.com/zarr-developers/zarr-python/issues/2995  
+**Repository:** [zarr-developers/zarr-python](https://github.com/zarr-developers/zarr-python) — Python library for chunked, compressed N-dimensional arrays, widely used in ML/scientific data pipelines (2k⭐, actively maintained)  
+**Status:** Phase I — In Progress (preparing to claim the issue)
 
 ---
 
 ## Why I Chose This Issue
 
-I'm focused on AI/ML for this program, and PyTorch-Ignite is a well-known, actively maintained library in the PyTorch ecosystem — contributing here is both on-theme and a strong portfolio signal. The issue is small and well-bounded (improving formatting options on the `ProgressBar` handler), which fits a 3–4 week cycle and lets me get a real PR merged rather than getting lost in a large refactor.
+Zarr is a pure-Python library that's heavily used in ML and scientific data pipelines for storing large, chunked arrays, so contributing here is relevant to the data side of AI/ML work. I deliberately chose a well-scoped documentation issue for my first contribution: it's recent (opened April 2025), unassigned, has no competing pull request, and the reporter already included a working code example, so the path to a merged PR is clear rather than open-ended.
 
-It also matches my skills: it's pure Python and the change is localized to the progress-bar handler, so I can ramp up quickly with Claude Code rather than needing deep prior knowledge of the whole codebase. I'm hoping to learn how a mature open-source project structures its handlers and tests, how `tqdm` formatting works under the hood, and how to write a contribution that meets a high bar for code style (the project uses `ruff` + `pre-commit`) and test coverage.
+It matches my skills and learning goals: the work is Python documentation plus light research into how `fsspec` / `s3fs` authentication parameters flow through `storage_options`. I'm hoping to learn how a mature open-source project structures its docs and contribution workflow, get comfortable with its `pre-commit`/CI checks, and land a real merged PR I can build on for a more code-heavy second contribution.
 
 ---
 
@@ -20,27 +20,25 @@ It also matches my skills: it's pure Python and the change is localized to the p
 
 ### Problem Description
 
-The `ProgressBar` handler doesn't expose enough control over how the bar is formatted. In particular, when you attach progress bars to multiple loops (e.g. a training loop and a separate validation/evaluation loop), the bars don't line up — the description and counter columns are different widths, so the actual `|bar|` sections start and end at different horizontal positions and the output looks misaligned.
+Zarr's documentation doesn't explain which authentication keys are valid inside the `storage_options` dict when opening a store backed by `fsspec` (e.g. S3 / MinIO). Users guess at keys like `key`/`secret` or `username`/`password`, and when they're wrong they get cryptic errors such as `TypeError: ClientSession._request() got an unexpected keyword argument 'secret'`.
 
 ### Expected Behavior
 
-A user should be able to configure the bar's format (for example, pass a `tqdm` format string like `"{desc:<15} [{n_fmt}/{total_fmt}]|{bar}| {rate_fmt}{postfix}"`) so that multiple progress bars align cleanly, with consistent column widths and how the epoch/iteration info is displayed.
+The storage user-guide should clearly document how to authenticate to common `fsspec` backends via `storage_options` (which keys are accepted for S3/HTTP, or a pointer to the relevant `fsspec`/`s3fs` configuration), ideally with a short working example.
 
 ### Current Behavior
 
-Formatting is largely fixed/internal — the `_OutputHandler` controls how epoch info is rendered and there's no clean public way to override the layout, so multiple bars render with mismatched widths.
+The storage guide covers opening remote stores but omits an authentication section, leaving users to trial-and-error the `storage_options` keys.
 
 ### Affected Components
 
-- `ignite/contrib/handlers/tqdm_logger.py` (the `ProgressBar` handler and its internal `_OutputHandler`) — _to confirm exact path/module during reproduction in Phase II._
+- The storage user-guide page (`zarr.readthedocs.io/en/latest/user-guide/storage.html`) — corresponding source likely under `docs/user-guide/storage.rst` (_to confirm exact path during Phase II_).
+- Behavior is delegated to `fsspec` / `s3fs`, so the fix is documentation pointing at the correct backend auth parameters, not a code change.
 
-### Maintainer Context & Prior Attempts
+### Maintainer Context & Hints
 
-This issue is well-discussed, which is a strong signal for Phase II:
-
-- **Maintainer engagement:** Collaborator `@vfdev-5` responded, invited a PR, and posted a workaround showing that careful `bar_format` strings + a mid-sized fill character can visually align bars — but confirmed there's currently no clean way to control *whether/how* epoch info is shown.
-- **Original author's preferred design:** `@jmg049` (issue author) prototyped a `progress_with=<trainer_pbar>` parameter so a secondary (evaluator) bar inherits the trainer's epoch context, plus a custom `epochs` tqdm field. This linking approach — not just more format strings — is what the discussion converged toward.
-- **Failed attempt to learn from — PR [#3761](https://github.com/pytorch/ignite/pull/3761):** A prior contributor added `show_epoch` (bool) + `epoch_format` (string). `@vfdev-5` **closed it unmerged**, saying it "does not address the issue and does wrong things." Two takeaways I'm carrying forward: **(1) agree on the approach in the issue thread before writing code, and (2) verify and locally test any AI-assisted code before opening a PR.**
+- The issue reporter included the exact failing error **and** a working solution using `s3fs` directly with the proper parameters — so there's a concrete, tested example to base the docs on.
+- Labels: `documentation`, `help wanted`. Unassigned, no linked PR, 0 comments as of selection — low contention, but I'll still post a short comment to claim it and confirm the doc location/scope with maintainers before writing.
 
 ---
 
@@ -81,8 +79,8 @@ Using UMPIRE framework (adapted):
 **Understand:** [Restate the problem]
 
 **Match:** [What similar patterns/solutions exist in the codebase?]
-- Prior art: PR [#3761](https://github.com/pytorch/ignite/pull/3761) (`show_epoch` + `epoch_format`) was rejected — avoid that shape. Lean toward `@jmg049`'s `progress_with=` bar-linking idea and confirm scope with `@vfdev-5` first.
-- Study how `_OutputHandler` in `tqdm_logger.py` currently injects epoch info, and how existing `ProgressBar` kwargs (e.g. `bar_format`, `persist`) are threaded through to `tqdm`.
+- Find how the existing storage docs are structured (`docs/user-guide/storage.*`) and mirror that style for a new auth section.
+- Base the example on the reporter's working `s3fs` snippet; cross-check against `fsspec`/`s3fs` docs for the canonical `storage_options` auth keys (e.g. `key`, `secret`, `endpoint_url`, `client_kwargs`).
 
 **Plan:** [Step-by-step implementation plan]
 1. [Modify file X to do Y]
