@@ -4,7 +4,7 @@
 **Student:** Aditi Deodhar  
 **Issue:** https://github.com/zarr-developers/zarr-python/issues/2995  
 **Repository:** [zarr-developers/zarr-python](https://github.com/zarr-developers/zarr-python) — Python library for chunked, compressed N-dimensional arrays, widely used in ML/scientific data pipelines (2k⭐, actively maintained)  
-**Status:** Phase II — In Progress (local dev environment set up; confirming the docs gap and solution approach)
+**Status:** Phase II — Complete (env set up, gap reproduced, branch created, UMPIRE solution plan written) → ready to implement in Phase III
 
 ---
 
@@ -84,10 +84,21 @@ This is a documentation gap (not a runtime bug), so "reproduction" = confirming 
 2. Observe that every remote/S3 example uses **anonymous access** (`storage_options={'anon': True}`) or `client_kwargs={'endpoint_url': ...}`.
 3. Note there is **no section covering credential-based authentication** (access key + secret) for private S3 / MinIO buckets — which is exactly what the issue reporter needed.
 
+### Branch Link
+
+- Working branch: [`docs-issue-2995`](https://github.com/deodharaditi/zarr-python/tree/docs-issue-2995) (created from up-to-date `main`, pushed to my fork)
+
 ### Reproduction Evidence
 
-- **Source file confirmed:** [`docs/user-guide/storage.md`](https://github.com/zarr-developers/zarr-python/blob/main/docs/user-guide/storage.md)
-- **My findings:** The storage guide mentions `storage_options` can configure the fsspec backend and shows anonymous examples, but never documents how to pass credentials. The reporter's error (`TypeError: ClientSession._request() got an unexpected keyword argument 'secret'`) happens when auth keys are placed where `s3fs` forwards them to `aiohttp` instead of consuming them — i.e., a documentation problem about *which keys go where*. _Next: confirm the canonical `storage_options` auth keys (`key`, `secret`, `endpoint_url`/`client_kwargs`) against the `s3fs` docs and a local example before drafting the docs section._
+- **Source file confirmed:** [`docs/user-guide/storage.md`](https://github.com/zarr-developers/zarr-python/blob/main/docs/user-guide/storage.md) — the `### Remote Store` section (lines ~120–152) only shows anonymous (`anon: True`) examples.
+- **Canonical auth keys confirmed locally:** I inspected the installed `s3fs` (v2026.4.0) in my dev env:
+  ```python
+  import s3fs, inspect
+  print(inspect.signature(s3fs.S3FileSystem.__init__))
+  # -> anon, endpoint_url, key, secret, token, use_ssl, client_kwargs, username, password, ...
+  ```
+  So `key`, `secret`, `token`, and `endpoint_url` are **top-level** `S3FileSystem` parameters that `fsspec` consumes from `storage_options`.
+- **Root cause of the reporter's error:** `TypeError: ClientSession._request() got an unexpected keyword argument 'secret'` occurs when credentials are nested inside `client_kwargs`. `client_kwargs` is forwarded to the underlying `aiohttp`/`aiobotocore` `ClientSession`, which doesn't accept `secret` — so credentials must go at the **top level** of `storage_options`, not inside `client_kwargs`. This is precisely the distinction the docs never state.
 
 ---
 
@@ -95,32 +106,38 @@ This is a documentation gap (not a runtime bug), so "reproduction" = confirming 
 
 ### Analysis
 
-[Your analysis of the root cause - what's causing the issue?]
+The root cause is a **documentation gap**, not a code bug. `FsspecStore.from_url(..., storage_options=...)` passes `storage_options` straight to the fsspec backend (`s3fs.S3FileSystem`). The credential parameters (`key`, `secret`, `token`, `endpoint_url`) are top-level `S3FileSystem` arguments, but the storage guide only ever demonstrates anonymous access, so users guess — and a common wrong guess (nesting credentials in `client_kwargs`) routes them to the aiohttp `ClientSession`, producing the cryptic `unexpected keyword argument 'secret'` error.
 
 ### Proposed Solution
 
-[High-level description of your fix approach]
+Add a short **"Authentication"** subsection to the `### Remote Store` section of `docs/user-guide/storage.md` that shows how to pass credentials for a private S3 / MinIO bucket via `storage_options`, and explicitly calls out that credentials go at the **top level** (not inside `client_kwargs`). Because the docs build **executes** code blocks (`markdown-exec`), the credential example must be a **non-executed** `python` block (we can't connect to a private bucket in CI).
 
 ### Implementation Plan
 
 Using UMPIRE framework (adapted):
 
-**Understand:** [Restate the problem]
+**Understand:** Zarr's storage docs don't explain how to authenticate to private remote stores; only anonymous examples exist. Users need to know which `storage_options` keys carry credentials and where they belong.
 
-**Match:** [What similar patterns/solutions exist in the codebase?]
-- Find how the existing storage docs are structured (`docs/user-guide/storage.*`) and mirror that style for a new auth section.
-- Base the example on the reporter's working `s3fs` snippet; cross-check against `fsspec`/`s3fs` docs for the canonical `storage_options` auth keys (e.g. `key`, `secret`, `endpoint_url`, `client_kwargs`).
+**Match:**
+- Mirror the existing `### Remote Store` examples in `storage.md` (lines ~120–152) — same `FsspecStore.from_url(..., storage_options={...})` shape and prose style.
+- Ground the keys in the verified `s3fs.S3FileSystem` signature (`key`, `secret`, `token`, `endpoint_url`, `anon`).
 
-**Plan:** [Step-by-step implementation plan]
-1. [Modify file X to do Y]
-2. [Add function Z]
-3. [Update tests]
+**Plan:**
+1. In `docs/user-guide/storage.md`, immediately after the Remote Store examples (before `### Memory Store`), add an **"Authentication"** subsection.
+2. Add a **non-executed** `python` code block showing a private-bucket / MinIO example:
+   `storage_options={'key': '...', 'secret': '...', 'endpoint_url': 'https://...'}` — plus notes on `token` (temporary creds) and `anon=True` (public).
+3. Add a callout: **credentials go at the top level of `storage_options`, not in `client_kwargs`** (which is forwarded to aiohttp and causes the reporter's error). Link to the `s3fs`/`fsspec` docs.
+4. Add a towncrier news fragment: `changes/2995.doc.md`.
 
-**Implement:** [Link to your branch/commits as you work]
+**Implement:** _(Phase III)_ on branch [`docs-issue-2995`](https://github.com/deodharaditi/zarr-python/tree/docs-issue-2995).
 
-**Review:** [Self-review checklist - does it follow the project's contribution guidelines?]
+**Review:** Run the `prek` pre-commit hooks (project uses `prek`, compatible with `.pre-commit-config.yaml`); rebase on `upstream/main` before opening the PR; follow the repo's `PULL_REQUEST_TEMPLATE.md` and reference issue #2995; keep the change scoped to docs only.
 
-**Evaluate:** [How will you verify it works?]
+**Evaluate:** This is a docs-only change, so no unit tests are required (code coverage is unaffected). Verification:
+1. Build the docs locally with `mkdocs build --strict` and confirm **no new warnings/broken cross-references**.
+2. `mkdocs serve` and visually confirm the new **Authentication** subsection renders correctly on the storage page.
+3. Confirm the towncrier fragment is picked up (`towncrier build --draft`).
+4. Have a knowledgeable reader sanity-check that the documented `key`/`secret`/`endpoint_url` placement is correct against the `s3fs` API.
 
 ---
 
