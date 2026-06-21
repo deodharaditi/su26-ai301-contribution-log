@@ -4,7 +4,7 @@
 **Student:** Aditi Deodhar  
 **Issue:** https://github.com/zarr-developers/zarr-python/issues/2995  
 **Repository:** [zarr-developers/zarr-python](https://github.com/zarr-developers/zarr-python) — Python library for chunked, compressed N-dimensional arrays, widely used in ML/scientific data pipelines (2k⭐, actively maintained)  
-**Status:** Phase II — Complete (env set up, gap reproduced, branch created, UMPIRE solution plan written) → ready to implement in Phase III
+**Status:** Phase III — Complete (docs change implemented, committed, and pushed; build + hooks validated) → ready to open PR in Phase IV
 
 ---
 
@@ -143,38 +143,84 @@ Using UMPIRE framework (adapted):
 
 ## Testing Strategy
 
-### Unit Tests
+This is a **documentation-only** change (no source code modified), so the project's automated
+test suite (`pytest`) and 100% coverage requirement don't apply — there is no new code to unit-test.
+Instead, I validated against the checks the repo actually runs on docs in CI (`pre-commit.ci`) and
+the docs build:
 
-- [ ] Test case 1: [Description]
-- [ ] Test case 2: [Description]
-- [ ] Test case 3: [Description]
+### Validation performed
 
-### Integration Tests
+- [x] **`mkdocs build --strict`** passes with no new warnings or broken cross-references (strict mode
+  fails the build on any warning) — confirms my new `#### Authentication` section and links render.
+- [x] **`mkdocs serve`** visual check — the Authentication subsection appears under *Remote Store* on
+  the storage page, with the `!!! note` callout rendering correctly.
+- [x] **codespell** (a configured pre-commit hook) — runs clean (exit 0) on both changed files.
+- [x] **trailing-whitespace** hook equivalent — 0 occurrences in the changed files.
+- [x] **towncrier-check** — `towncrier build --draft` lists the new fragment under *Improved
+  Documentation* with the correct `#2995` link.
+- [x] The new code example is a **non-executed** `python` block, so it does **not** run during the
+  build (important: the surrounding examples use `exec="true"` and would otherwise try to connect to
+  a private bucket in CI).
 
-- [ ] Integration scenario 1
-- [ ] Integration scenario 2
+### Note on local hooks
 
-### Manual Testing
-
-[What you tested manually and results]
+I couldn't run the full `prek` hook suite locally because of a pre-existing machine issue (a stale
+Windows registry entry pointing `Python 3.12` at a non-existent `C:\Python312`, which `prek`/`uv`'s
+interpreter discovery trips over — see Challenges below). I verified the only hooks that touch
+markdown files (`codespell`, `trailing-whitespace`, `towncrier-check`) manually instead, and the
+project's `pre-commit.ci` will run the complete suite on the PR.
 
 ---
 
 ## Implementation Notes
 
-### Week [X] Progress
+### Implementation Progress
 
-[What you built this week, challenges faced, decisions made]
+Implemented the documentation fix on branch
+[`docs-issue-2995`](https://github.com/deodharaditi/zarr-python/tree/docs-issue-2995):
 
-### Week [Y] Progress
-
-[Continue documenting as you work]
+- Added a new `#### Authentication` subsection under *Remote Store* in `docs/user-guide/storage.md`,
+  showing how to pass credentials (`key`, `secret`, `token`, `endpoint_url`) through `storage_options`
+  for a private S3 / MinIO bucket, plus a fallback note about automatic AWS credential discovery
+  (env vars, `~/.aws/credentials`, instance profile).
+- Added a `!!! note` callout explaining the **root cause** of the reporter's error: credentials must
+  be **top-level** `storage_options` keys, not nested in `client_kwargs` (which is forwarded to the
+  `aiohttp` client session and rejects `secret`).
+- Added a towncrier news fragment `changes/2995.doc.md` (type `doc`) so the change appears in the
+  release notes.
 
 ### Code Changes
 
-- **Files modified:** [List]
-- **Key commits:** [Links to important commits]
-- **Approach decisions:** [Why you chose certain approaches]
+- **Files modified:**
+  - `docs/user-guide/storage.md` (+~33 lines: new Authentication subsection)
+  - `changes/2995.doc.md` (new file: news fragment)
+- **Key commit:** [`b5f364f`](https://github.com/deodharaditi/zarr-python/commit/b5f364fa) —
+  `docs: document authentication for private remote stores`
+- **Branch:** [`docs-issue-2995`](https://github.com/deodharaditi/zarr-python/tree/docs-issue-2995)
+  (rebased on `upstream/main` before committing)
+- **Approach decisions:**
+  - *Verified, not guessed:* I confirmed the canonical credential keys by inspecting the installed
+    `s3fs.S3FileSystem` signature rather than copying the reporter's (broken) attempt.
+  - *Non-executed example:* the surrounding docs blocks run at build time via `markdown-exec`; a real
+    private-bucket example can't run in CI, so I used a plain (non-`exec`) `python` block.
+  - *House style:* used the Material `!!! note` admonition (matching existing usage in these docs)
+    rather than Sphinx/MyST `{note}`.
+
+### Challenges Faced
+
+1. **Stale Python registry entry broke tooling.** `py -3.12` and `prek`/`uv` resolved Python 3.12 to a
+   non-existent `C:\Python312` (a leftover machine-wide `HKLM` registration), even though a valid
+   Anaconda 3.12 exists. *Fix/workaround:* created a dedicated `conda` env for the work, and — since
+   `prek` insisted on the broken interpreter — verified the markdown-relevant hooks manually instead of
+   modifying the machine's registry. (The valid fix would be removing the stale `HKLM` key, which needs
+   admin and is unrelated to this contribution.)
+2. **pip too old for `--group`.** The `pip install ... --group docs` step (PEP 735) needed pip ≥ 25.1;
+   upgrading pip first resolved it.
+3. **Misleading MkDocs build banner.** The build prints a loud "MkDocs is abandoned, switch to
+   ProperDocs" message from a third-party plugin — confirmed it's promotional noise, not a real error
+   (build completes; silenced with `DISABLE_MKDOCS_2_WARNING=true`).
+4. **Avoiding a build-breaking example.** Realized the docs execute code blocks, so I deliberately made
+   the credentials example non-executed to avoid CI trying to authenticate to a fake bucket.
 
 ---
 
