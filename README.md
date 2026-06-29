@@ -231,9 +231,9 @@ Implemented the documentation fix on branch
 **PR Description:** Added an `#### Authentication` subsection to the Remote Store section of `docs/user-guide/storage.md`, showing how to pass credentials (`key`, `secret`, `token`, `endpoint_url`) as top-level keys in `storage_options` for private S3 / MinIO access, and explaining why nesting them in `client_kwargs` causes the reporter's `TypeError`. Also added a towncrier news fragment (`changes/2995.doc.md`).
 
 **Maintainer Feedback:**
-- *(awaiting first review)*
+- **2026-06-28** (@dcherian): The project has a test that enforces every code block in the docs is explicitly annotated as runnable (`exec="true"`) or opted out (`exec="false"` with a reason) — the plain `` ```python `` fence was failing that check. Fix: added `exec="false" reason="requires private S3 credentials not available in the docs build environment"` to the block. Committed and pushed as [`9be3d548`](https://github.com/deodharaditi/zarr-python/commit/9be3d548).
 
-**Status:** Awaiting review
+**Status:** Awaiting review (follow-up commit pushed)
 
 ---
 
