@@ -4,7 +4,7 @@
 **Student:** Aditi Deodhar  
 **Issue:** https://github.com/zarr-developers/zarr-python/issues/2995  
 **Repository:** [zarr-developers/zarr-python](https://github.com/zarr-developers/zarr-python) — Python library for chunked, compressed N-dimensional arrays, widely used in ML/scientific data pipelines (2k⭐, actively maintained)  
-**Status:** Phase III — Complete (docs change implemented, committed, and pushed; build + hooks validated) → ready to open PR in Phase IV
+**Status:** Phase IV — Complete (PR submitted, awaiting maintainer review)
 
 ---
 
@@ -226,15 +226,14 @@ Implemented the documentation fix on branch
 
 ## Pull Request
 
-**PR Link:** [GitHub PR URL when submitted]
+**PR Link:** [#4108 — docs: document authentication for private remote stores via storage_options](https://github.com/zarr-developers/zarr-python/pull/4108)
 
-**PR Description:** [Draft or final PR description - much of the content above can be adapted]
+**PR Description:** Added an `#### Authentication` subsection to the Remote Store section of `docs/user-guide/storage.md`, showing how to pass credentials (`key`, `secret`, `token`, `endpoint_url`) as top-level keys in `storage_options` for private S3 / MinIO access, and explaining why nesting them in `client_kwargs` causes the reporter's `TypeError`. Also added a towncrier news fragment (`changes/2995.doc.md`).
 
 **Maintainer Feedback:**
-- [Date]: [Summary of feedback received]
-- [Date]: [How you addressed it]
+- *(awaiting first review)*
 
-**Status:** [Awaiting review / Iterating / Approved / Merged]
+**Status:** Awaiting review
 
 ---
 
